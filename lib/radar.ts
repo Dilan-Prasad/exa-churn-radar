@@ -101,6 +101,18 @@ export function normalizeCompanyUrl(input: string): string {
   if (!trimmed) {
     throw new RadarError("Enter a company website to begin.", 400, "INVALID_URL");
   }
+  const explicitScheme = trimmed.match(/^([a-z][a-z0-9+.-]*):\/\//i)?.[1];
+  if (
+    explicitScheme &&
+    explicitScheme.toLowerCase() !== "http" &&
+    explicitScheme.toLowerCase() !== "https"
+  ) {
+    throw new RadarError(
+      "Use a public http(s) company website.",
+      400,
+      "INVALID_URL",
+    );
+  }
 
   let parsed: URL;
   try {
@@ -215,9 +227,21 @@ export function toCustomers(
     })
     .filter((item): item is Customer => item !== null);
 
-  return Array.from(
-    new Map(customers.map((customer) => [normalizeName(customer.name), customer])).values(),
-  ).slice(0, 15);
+  const uniqueCustomers = new Map<string, Customer>();
+  for (const customer of customers) {
+    const key = normalizeName(customer.name);
+    const existing = uniqueCustomers.get(key);
+    if (!existing) {
+      uniqueCustomers.set(key, customer);
+      continue;
+    }
+    existing.citations = uniqueCitations([
+      ...existing.citations,
+      ...customer.citations,
+    ]);
+  }
+
+  return Array.from(uniqueCustomers.values()).slice(0, 15);
 }
 
 export function riskBandForScore(score: number): RiskBand {

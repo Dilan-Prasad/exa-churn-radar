@@ -291,15 +291,6 @@ function ResultsDashboard({
     filteredSignals.find((signal) => signal.customerName === activeName) ??
     filteredSignals[0];
 
-  useEffect(() => {
-    if (
-      filteredSignals.length > 0 &&
-      !filteredSignals.some((signal) => signal.customerName === activeName)
-    ) {
-      setActiveName(filteredSignals[0].customerName);
-    }
-  }, [activeName, filteredSignals]);
-
   const urgent = result.signals.filter(
     (signal) => signal.riskBand === "high",
   ).length;
@@ -660,10 +651,7 @@ export function RadarApp() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading) {
-      setPhase(0);
-      return;
-    }
+    if (!loading) return;
     const timer = window.setInterval(() => {
       setPhase((current) => Math.min(current + 1, loadingPhases.length - 1));
     }, 7_500);
@@ -672,6 +660,7 @@ export function RadarApp() {
 
   async function runScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setPhase(0);
     setLoading(true);
     setError(null);
     setResult(null);
