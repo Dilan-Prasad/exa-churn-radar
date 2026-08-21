@@ -1,4 +1,5 @@
 export type RiskBand = "high" | "medium" | "low" | "clear";
+export type PortfolioSource = "discovered" | "provided";
 
 export type CompanyProfile = {
   companyName: string;
@@ -50,6 +51,7 @@ export type AnalysisResult = {
   profile: CompanyProfile;
   customers: Customer[];
   signals: AccountSignal[];
+  portfolioSource: PortfolioSource;
   trace: ExaTrace[];
   analyzedAt: string;
   totalDurationMs: number;

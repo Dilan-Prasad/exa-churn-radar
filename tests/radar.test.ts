@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  MAX_PROVIDED_CUSTOMERS,
   normalizeCompanyUrl,
+  parseCustomerListInput,
   parseStructuredSummary,
   riskBandForScore,
   toCustomers,
@@ -21,6 +23,29 @@ test("rejects local and private URLs", () => {
   assert.throws(() => normalizeCompanyUrl("localhost:3000"), /public http/);
   assert.throws(() => normalizeCompanyUrl("http://192.168.1.4"), /public http/);
   assert.throws(() => normalizeCompanyUrl("ftp://example.com"), /public http/);
+});
+
+test("parses and deduplicates operator-provided customer lists", () => {
+  assert.deepEqual(
+    parseCustomerListInput("Cursor, Vercel\nDatabricks; cursor"),
+    ["Cursor", "Vercel", "Databricks"],
+  );
+  assert.deepEqual(parseCustomerListInput(""), []);
+});
+
+test("rejects oversized operator-provided portfolios", () => {
+  const customers = Array.from(
+    { length: MAX_PROVIDED_CUSTOMERS + 1 },
+    (_, index) => `Customer ${index + 1}`,
+  ).join(",");
+  assert.throws(
+    () => parseCustomerListInput(customers),
+    /at most 20 customer accounts/,
+  );
+  assert.throws(
+    () => parseCustomerListInput(["Acme"]),
+    /comma-separated list/,
+  );
 });
 
 test("parses plain and fenced structured summaries", () => {

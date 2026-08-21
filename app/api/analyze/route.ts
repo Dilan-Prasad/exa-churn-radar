@@ -8,13 +8,15 @@ import {
 } from "@/lib/exa";
 import {
   normalizeCompanyUrl,
+  parseCustomerListInput,
   parseStructuredSummary,
   RadarError,
   toCompanyProfile,
   toCustomers,
+  toProvidedCustomers,
   toSignals,
 } from "@/lib/radar";
-import type { AnalysisResult } from "@/lib/types";
+import type { AnalysisResult, Customer } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -39,6 +41,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => null)) as {
       url?: unknown;
+      customers?: unknown;
     } | null;
 
     if (typeof body?.url !== "string" || body.url.length > 2_048) {
@@ -50,6 +53,9 @@ export async function POST(request: Request) {
     }
 
     const url = normalizeCompanyUrl(body.url);
+    const providedCustomerNames = parseCustomerListInput(body.customers);
+    const portfolioSource =
+      providedCustomerNames.length > 0 ? "provided" : "discovered";
 
     const companyResponse = await extractCompanyProfile(url);
     const failedStatus = companyResponse.data.statuses?.find(
@@ -71,17 +77,25 @@ export async function POST(request: Request) {
       url,
     );
 
-    const customerResponse = await discoverCustomers(profile);
-    const customers = toCustomers(
-      customerResponse.data.output?.content,
-      customerResponse.data.output?.grounding,
-    );
-    if (customers.length < 5) {
-      throw new RadarError(
-        `Only ${customers.length} defensible public customer relationships were found. Try a company with a larger public customer footprint.`,
-        422,
-        "INSUFFICIENT_CUSTOMERS",
+    let customerResponse:
+      | Awaited<ReturnType<typeof discoverCustomers>>
+      | undefined;
+    let customers: Customer[];
+    if (portfolioSource === "provided") {
+      customers = toProvidedCustomers(providedCustomerNames);
+    } else {
+      customerResponse = await discoverCustomers(profile);
+      customers = toCustomers(
+        customerResponse.data.output?.content,
+        customerResponse.data.output?.grounding,
       );
+      if (customers.length < 5) {
+        throw new RadarError(
+          `Only ${customers.length} defensible public customer relationships were found. Try a company with a larger public customer footprint or provide a known customer list.`,
+          422,
+          "INSUFFICIENT_CUSTOMERS",
+        );
+      }
     }
 
     const signalResponse = await scanChurnSignals(profile, customers);
@@ -100,14 +114,20 @@ export async function POST(request: Request) {
         companyResponse.durationMs,
         companyResponse.data.results?.length ?? 0,
       ),
-      toTrace(
-        "Prove customer relationships",
-        "/search",
-        "Deep semantic search + grounded structured output",
-        customerResponse.data,
-        customerResponse.durationMs,
-        customers.length,
-      ),
+    ];
+    if (customerResponse) {
+      trace.push(
+        toTrace(
+          "Prove customer relationships",
+          "/search",
+          "Deep semantic search + grounded structured output",
+          customerResponse.data,
+          customerResponse.durationMs,
+          customers.length,
+        ),
+      );
+    }
+    trace.push(
       toTrace(
         "Find account-specific risk",
         "/search",
@@ -116,13 +136,17 @@ export async function POST(request: Request) {
         signalResponse.durationMs,
         signals.length,
       ),
-    ];
+    );
 
     const caveats = [
       "Public-web signals are hypotheses for account review, not proof that a customer intends to churn.",
       "Validate findings against product usage, support history, CRM activity, and direct customer conversations.",
     ];
-    if (customers.length < 10) {
+    if (portfolioSource === "provided") {
+      caveats.push(
+        "Customer relationships were supplied by the operator and were not independently verified against the public web.",
+      );
+    } else if (customers.length < 10) {
       caveats.push(
         `Exa found only ${customers.length} relationships with sufficient public evidence; Churn Radar does not fabricate accounts to fill a quota.`,
       );
@@ -140,6 +164,7 @@ export async function POST(request: Request) {
       profile,
       customers,
       signals,
+      portfolioSource,
       trace,
       analyzedAt: new Date().toISOString(),
       totalDurationMs: Date.now() - startedAt,

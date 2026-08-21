@@ -245,7 +245,7 @@ a {
   letter-spacing: 0.11em;
 }
 
-.scan-form > div {
+.url-input-row {
   display: flex;
   align-items: center;
   padding: 6px;
@@ -256,18 +256,19 @@ a {
   transition: 180ms ease;
 }
 
-.scan-form > div:focus-within {
+.url-input-row:focus-within,
+.customer-list-input:focus-within {
   border-color: var(--ink);
   box-shadow: 0 14px 35px rgba(18, 34, 29, 0.12);
 }
 
-.scan-form span {
+.url-input-row > span {
   padding-left: 13px;
   color: #87928d;
   font-size: 0.93rem;
 }
 
-.scan-form input {
+.url-input-row input {
   min-width: 0;
   flex: 1;
   padding: 13px 8px;
@@ -277,6 +278,87 @@ a {
   background: transparent;
   font-size: 0.97rem;
   font-weight: 650;
+}
+
+.customer-list-field {
+  margin-top: 13px;
+}
+
+.customer-list-field > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.customer-list-field label {
+  font-family: var(--mono);
+  font-size: 0.61rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+}
+
+.customer-list-field label span {
+  margin-left: 5px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  color: #5d6d67;
+  background: var(--paper-deep);
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+}
+
+.customer-list-field small {
+  color: #7c8984;
+  font-family: var(--mono);
+  font-size: 0.55rem;
+}
+
+.customer-list-input {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 12px;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 253, 248, 0.74);
+  transition: 180ms ease;
+}
+
+.customer-list-input svg {
+  flex: 0 0 auto;
+  margin-top: 7px;
+  color: #74817c;
+}
+
+.customer-list-input textarea {
+  width: 100%;
+  min-height: 45px;
+  padding: 4px 0;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+  font-size: 0.8rem;
+  font-weight: 570;
+  line-height: 1.45;
+}
+
+.customer-list-input textarea::placeholder {
+  color: #9aa39f;
+}
+
+.customer-list-field > p {
+  margin: 6px 2px 0;
+  color: #798680;
+  font-size: 0.63rem;
+  line-height: 1.4;
+}
+
+.scan-form .scan-submit {
+  width: 100%;
+  margin-top: 12px;
 }
 
 .scan-form button,
@@ -881,6 +963,10 @@ a {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+}
+
+.trace-grid--compact {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .trace-card {
@@ -1824,17 +1910,8 @@ a {
     font-size: clamp(3.2rem, 15.5vw, 5rem);
   }
 
-  .scan-form > div {
-    align-items: stretch;
-    flex-wrap: wrap;
-  }
-
-  .scan-form input {
+  .url-input-row input {
     width: calc(100% - 75px);
-  }
-
-  .scan-form button {
-    width: 100%;
   }
 
   .hero__proof {

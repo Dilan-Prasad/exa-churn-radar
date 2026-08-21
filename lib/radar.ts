@@ -19,6 +19,8 @@ export class RadarError extends Error {
   }
 }
 
+export const MAX_PROVIDED_CUSTOMERS = 20;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -148,6 +150,54 @@ export function normalizeCompanyUrl(input: string): string {
   parsed.hash = "";
   parsed.search = "";
   return parsed.toString();
+}
+
+export function parseCustomerListInput(value: unknown): string[] {
+  if (value === undefined || value === null || value === "") return [];
+  if (typeof value !== "string") {
+    throw new RadarError(
+      "Customer accounts must be a comma-separated list.",
+      400,
+      "INVALID_CUSTOMERS",
+    );
+  }
+
+  const names = value
+    .split(/[,\n;]/)
+    .map((name) => name.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const uniqueNames = new Map<string, string>();
+  for (const name of names) {
+    if (name.length > 120) {
+      throw new RadarError(
+        "Each customer name must be 120 characters or fewer.",
+        400,
+        "INVALID_CUSTOMERS",
+      );
+    }
+    const key = normalizeName(name);
+    if (key && !uniqueNames.has(key)) uniqueNames.set(key, name);
+  }
+
+  if (uniqueNames.size > MAX_PROVIDED_CUSTOMERS) {
+    throw new RadarError(
+      `Provide at most ${MAX_PROVIDED_CUSTOMERS} customer accounts per scan.`,
+      400,
+      "TOO_MANY_CUSTOMERS",
+    );
+  }
+
+  return Array.from(uniqueNames.values());
+}
+
+export function toProvidedCustomers(names: string[]): Customer[] {
+  return names.map((name) => ({
+    name,
+    relationship: "Provided by the operator as a known customer.",
+    confidence: "high",
+    citations: [],
+  }));
 }
 
 export function parseStructuredSummary(summary: string | undefined): unknown {

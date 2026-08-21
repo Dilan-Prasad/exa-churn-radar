@@ -32,9 +32,15 @@ Open **Slide 2**, then **Method**. Briefly show the eight signal archetypes.
 ### 7:00–20:00 — Live demo
 
 1. Return to **Live Radar** and enter `exa.ai`.
+   - For the external prospecting story, leave the customer portfolio blank and
+     let Exa discover publicly evidenced customers.
+   - For the Exa-internal story, paste a short comma-separated list of known
+     customers. Explain that the app trusts the team's source of truth and
+     skips redundant relationship discovery.
 2. Before clicking, state the expected workflow:
    - `/contents` learns Exa's search/retrieval product surface;
-   - deep `/search` proves real customers rather than collecting logos;
+   - when no list is supplied, deep `/search` proves real customers rather than
+     collecting logos;
    - deep-reasoning `/search` looks for indirect changes and returns structured,
      grounded output.
 3. Click **Scan accounts** and narrate the visible phases.

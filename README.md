@@ -1,10 +1,11 @@
 # Churn Radar
 
 Churn Radar is an outside-in account risk briefing for Customer Success leaders.
-Give it a B2B company URL and it:
+Give it a B2B company URL and, optionally, a comma-separated known customer
+portfolio. It:
 
 1. learns the vendor's actual product surface and customer job,
-2. finds 10–15 publicly evidenced customers,
+2. uses the supplied portfolio or finds 10–15 publicly evidenced customers,
 3. searches for indirect, business-specific churn signals for every account, and
 4. returns a prioritized, cited watchlist with a next best action.
 
@@ -19,13 +20,18 @@ signals do not. They look like a new internal infrastructure team, a competitor
 appearing in architecture docs, a cost-control mandate, a new platform leader,
 or a strategy shift that removes the underlying customer job.
 
-Churn Radar uses Exa for three distinct retrieval jobs:
+Churn Radar uses Exa for two or three distinct retrieval jobs:
 
 | Step | Endpoint | Exa capability | Why it matters |
 | --- | --- | --- | --- |
 | Understand the vendor | `POST /contents` | Subpage crawling + structured summary | Builds the vendor-specific model that makes later signals relevant |
 | Prove customers | `POST /search` (`deep`) | Semantic retrieval + structured output + grounding | Finds relationship evidence beyond the literal word "customer" |
 | Scan risk | `POST /search` (`deep-reasoning`) | Multi-step research across indirect signal archetypes | Connects public changes to the exact product surface at risk |
+
+When an internal team supplies customer names, the relationship-discovery call
+is deliberately skipped. Exa still profiles the vendor and researches every
+provided account, reducing latency and cost while respecting the team's source
+of truth.
 
 The UI exposes request IDs, latency, output counts, citations, and reported API
 cost so the workflow is inspectable during the demo.
@@ -65,6 +71,8 @@ npm run build
 ## Production-thinking choices
 
 - URL validation rejects malformed and non-public targets.
+- supplied customer portfolios are normalized, deduplicated, and capped at 20
+  accounts per interactive scan.
 - `/contents` status objects are checked because page-level crawl failures can
   arrive inside an HTTP 200 response.
 - transient Exa `429` and `5xx` responses are retried with backoff; all calls
@@ -80,9 +88,9 @@ npm run build
 
 ```text
 Browser
-  └─ POST /api/analyze { url }
+  └─ POST /api/analyze { url, customers? }
       ├─ Exa /contents → vendor-specific product model
-      ├─ Exa /search   → grounded customer list
+      ├─ supplied customer list, or Exa /search → grounded customer list
       └─ Exa /search   → one grounded risk hypothesis per customer
           └─ normalized AnalysisResult → watchlist + export
 ```

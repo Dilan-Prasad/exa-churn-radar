@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Sparkles,
   TriangleAlert,
+  UsersRound,
   Zap,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -30,7 +31,7 @@ import type {
 type View = "radar" | "method" | "briefing";
 type Filter = "all" | RiskBand;
 
-const loadingPhases = [
+const discoveryLoadingPhases = [
   {
     eyebrow: "POST /contents",
     title: "Learning the product surface",
@@ -51,6 +52,17 @@ const loadingPhases = [
     title: "Building the account brief",
     detail: "Attaching source evidence and calibrating each risk hypothesis.",
   },
+];
+
+const providedLoadingPhases = [
+  discoveryLoadingPhases[0],
+  {
+    eyebrow: "KNOWN CUSTOMER PORTFOLIO",
+    title: "Loading the supplied account set",
+    detail: "Using the operator's customer truth instead of rediscovering it.",
+  },
+  discoveryLoadingPhases[2],
+  discoveryLoadingPhases[3],
 ];
 
 const bandMeta: Record<
@@ -126,7 +138,16 @@ function RadarArtwork() {
   );
 }
 
-function LoadingPanel({ phase }: { phase: number }) {
+function LoadingPanel({
+  phase,
+  usesProvidedPortfolio,
+}: {
+  phase: number;
+  usesProvidedPortfolio: boolean;
+}) {
+  const phases = usesProvidedPortfolio
+    ? providedLoadingPhases
+    : discoveryLoadingPhases;
   return (
     <section className="loading-panel" aria-live="polite">
       <div className="loading-orbit">
@@ -135,12 +156,12 @@ function LoadingPanel({ phase }: { phase: number }) {
         <span />
       </div>
       <div>
-        <p className="eyebrow">{loadingPhases[phase].eyebrow}</p>
-        <h2>{loadingPhases[phase].title}</h2>
-        <p>{loadingPhases[phase].detail}</p>
+        <p className="eyebrow">{phases[phase].eyebrow}</p>
+        <h2>{phases[phase].title}</h2>
+        <p>{phases[phase].detail}</p>
       </div>
       <div className="loading-steps">
-        {loadingPhases.map((item, index) => (
+        {phases.map((item, index) => (
           <div
             className={`loading-step ${index < phase ? "is-done" : ""} ${
               index === phase ? "is-active" : ""
@@ -165,7 +186,7 @@ function TracePanel({ result }: { result: AnalysisResult }) {
       <div className="section-heading">
         <div>
           <p className="eyebrow">THE EXA WORKFLOW</p>
-          <h2>Three retrieval jobs, one account brief</h2>
+          <h2>From account portfolio to grounded brief</h2>
         </div>
         <div className="trace-total">
           <Clock3 size={14} />
@@ -175,7 +196,11 @@ function TracePanel({ result }: { result: AnalysisResult }) {
           )}
         </div>
       </div>
-      <div className="trace-grid">
+      <div
+        className={`trace-grid ${
+          result.trace.length === 2 ? "trace-grid--compact" : ""
+        }`}
+      >
         {result.trace.map((item, index) => (
           <article className="trace-card" key={item.step}>
             <div className="trace-card__top">
@@ -324,7 +349,11 @@ function ResultsDashboard({
         <div>
           <span>Accounts mapped</span>
           <strong>{result.customers.length}</strong>
-          <small>Publicly evidenced relationships</small>
+          <small>
+            {result.portfolioSource === "provided"
+              ? "Operator-provided portfolio"
+              : "Publicly evidenced relationships"}
+          </small>
         </div>
         <div>
           <span>Urgent review</span>
@@ -645,22 +674,33 @@ function BriefingDeck() {
 export function RadarApp() {
   const [view, setView] = useState<View>("radar");
   const [url, setUrl] = useState("exa.ai");
+  const [customerList, setCustomerList] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [scanUsesProvidedPortfolio, setScanUsesProvidedPortfolio] =
+    useState(false);
+  const providedCustomerCount = customerList
+    .split(/[,\n;]/)
+    .map((name) => name.trim())
+    .filter(Boolean).length;
 
   useEffect(() => {
     if (!loading) return;
     const timer = window.setInterval(() => {
-      setPhase((current) => Math.min(current + 1, loadingPhases.length - 1));
+      setPhase((current) =>
+        Math.min(current + 1, discoveryLoadingPhases.length - 1),
+      );
     }, 7_500);
     return () => window.clearInterval(timer);
   }, [loading]);
 
   async function runScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const usesProvidedPortfolio = providedCustomerCount > 0;
     setPhase(0);
+    setScanUsesProvidedPortfolio(usesProvidedPortfolio);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -669,7 +709,7 @@ export function RadarApp() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, customers: customerList }),
       });
       const payload = (await response.json()) as
         | AnalysisResult
@@ -764,13 +804,14 @@ export function RadarApp() {
                   <em>before renewal day.</em>
                 </h1>
                 <p>
-                  Enter any B2B company. Churn Radar maps its public customers,
-                  detects business-specific risk signals, and gives each CSM a
-                  sourced next move.
+                  Enter any B2B company, then bring your known customer
+                  portfolio or let Exa discover it. Churn Radar finds
+                  business-specific risk signals and gives each CSM a sourced
+                  next move.
                 </p>
                 <form className="scan-form" onSubmit={runScan}>
                   <label htmlFor="company-url">COMPANY WEBSITE</label>
-                  <div>
+                  <div className="url-input-row">
                     <span>https://</span>
                     <input
                       id="company-url"
@@ -780,11 +821,33 @@ export function RadarApp() {
                       autoComplete="url"
                       required
                     />
-                    <button type="submit">
-                      Scan accounts
-                      <ArrowRight size={17} />
-                    </button>
                   </div>
+                  <div className="customer-list-field">
+                    <div>
+                      <label htmlFor="customer-list">
+                        KNOWN CUSTOMER PORTFOLIO <span>OPTIONAL</span>
+                      </label>
+                      <small>{providedCustomerCount}/20 accounts</small>
+                    </div>
+                    <div className="customer-list-input">
+                      <UsersRound size={17} />
+                      <textarea
+                        id="customer-list"
+                        value={customerList}
+                        onChange={(event) => setCustomerList(event.target.value)}
+                        placeholder="Cursor, Vercel, Databricks, ..."
+                        rows={2}
+                      />
+                    </div>
+                    <p>
+                      Comma-separated. Leave blank to have Exa discover and
+                      verify public customers.
+                    </p>
+                  </div>
+                  <button className="scan-submit" type="submit">
+                    Scan accounts
+                    <ArrowRight size={17} />
+                  </button>
                 </form>
                 {error && (
                   <div className="error-banner" role="alert">
@@ -813,7 +876,12 @@ export function RadarApp() {
               <RadarArtwork />
             </section>
           )}
-          {loading && <LoadingPanel phase={phase} />}
+          {loading && (
+            <LoadingPanel
+              phase={phase}
+              usesProvidedPortfolio={scanUsesProvidedPortfolio}
+            />
+          )}
           {result && (
             <ResultsDashboard result={result} onDownload={downloadResult} />
           )}
