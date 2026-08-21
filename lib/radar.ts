@@ -20,6 +20,8 @@ export class RadarError extends Error {
 }
 
 export const MAX_PROVIDED_CUSTOMERS = 20;
+export const EXA_API_KEY_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -150,6 +152,28 @@ export function normalizeCompanyUrl(input: string): string {
   parsed.hash = "";
   parsed.search = "";
   return parsed.toString();
+}
+
+export function parseExaApiKey(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") {
+    throw new RadarError(
+      "The Exa API key must be a string.",
+      400,
+      "INVALID_API_KEY",
+    );
+  }
+
+  const apiKey = value.trim();
+  if (!EXA_API_KEY_PATTERN.test(apiKey)) {
+    throw new RadarError(
+      "That does not look like a valid Exa API key.",
+      400,
+      "INVALID_API_KEY",
+    );
+  }
+
+  return apiKey;
 }
 
 export function parseCustomerListInput(value: unknown): string[] {

@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileSearch,
   Gauge,
+  KeyRound,
   LoaderCircle,
   Orbit,
   Radar,
@@ -30,6 +31,9 @@ import type {
 
 type View = "radar" | "method" | "briefing";
 type Filter = "all" | RiskBand;
+
+const EXA_API_KEY_STORAGE = "churn-radar.exa-api-key";
+const DEFAULT_EXA_API_KEY = "64fbf381-6b76-4eeb-8efb-03e41b55e981";
 
 const discoveryLoadingPhases = [
   {
@@ -674,6 +678,7 @@ function BriefingDeck() {
 export function RadarApp() {
   const [view, setView] = useState<View>("radar");
   const [url, setUrl] = useState("exa.ai");
+  const [apiKey, setApiKey] = useState(DEFAULT_EXA_API_KEY);
   const [customerList, setCustomerList] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -685,6 +690,12 @@ export function RadarApp() {
     .split(/[,\n;]/)
     .map((name) => name.trim())
     .filter(Boolean).length;
+
+  useEffect(() => {
+    const trimmed = apiKey.trim();
+    if (trimmed) window.localStorage.setItem(EXA_API_KEY_STORAGE, trimmed);
+    else window.localStorage.removeItem(EXA_API_KEY_STORAGE);
+  }, [apiKey]);
 
   useEffect(() => {
     if (!loading) return;
@@ -709,7 +720,11 @@ export function RadarApp() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, customers: customerList }),
+        body: JSON.stringify({
+          url,
+          customers: customerList,
+          apiKey: apiKey.trim(),
+        }),
       });
       const payload = (await response.json()) as
         | AnalysisResult
@@ -748,6 +763,7 @@ export function RadarApp() {
 
   return (
     <div className="app-shell">
+      <div className="chrome">
       <header className="site-header">
         <button
           className="brand"
@@ -786,6 +802,27 @@ export function RadarApp() {
           <ArrowUpRight size={13} />
         </a>
       </header>
+      <div className="api-key-bar">
+        <label htmlFor="exa-api-key">
+          <KeyRound size={14} />
+          EXA API KEY
+        </label>
+        <input
+          id="exa-api-key"
+          type="password"
+          value={apiKey}
+          onChange={(event) => setApiKey(event.target.value)}
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <small>
+          {apiKey.trim()
+            ? "Saved in this browser and used for the next scan"
+            : "Paste a key here, or leave blank to use the server EXA_API_KEY"}
+        </small>
+      </div>
+      </div>
 
       {view === "method" && <Methodology />}
       {view === "briefing" && <BriefingDeck />}

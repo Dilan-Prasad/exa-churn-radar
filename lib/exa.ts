@@ -21,18 +21,24 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function exaPost<T>(
-  endpoint: ExaEndpoint,
-  body: Record<string, unknown>,
-): Promise<TimedResponse<T>> {
-  const apiKey = process.env.EXA_API_KEY;
-  if (!apiKey) {
+function resolveApiKey(apiKey?: string): string {
+  const resolved = apiKey?.trim() || process.env.EXA_API_KEY?.trim();
+  if (!resolved) {
     throw new RadarError(
-      "EXA_API_KEY is not configured on the server.",
-      503,
+      "Add an Exa API key in the app or set EXA_API_KEY on the server.",
+      400,
       "MISSING_API_KEY",
     );
   }
+  return resolved;
+}
+
+async function exaPost<T>(
+  endpoint: ExaEndpoint,
+  body: Record<string, unknown>,
+  apiKey?: string,
+): Promise<TimedResponse<T>> {
+  const resolvedKey = resolveApiKey(apiKey);
 
   const startedAt = Date.now();
   let lastError: Error | undefined;
@@ -43,7 +49,7 @@ async function exaPost<T>(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
+          "x-api-key": resolvedKey,
         },
         body: JSON.stringify(body),
         cache: "no-store",
@@ -70,8 +76,8 @@ async function exaPost<T>(
 
       if (response.status === 401 || response.status === 403) {
         throw new RadarError(
-          "Exa rejected the API key. Check the server configuration.",
-          503,
+          "Exa rejected the API key. Check the key in the app or server configuration.",
+          401,
           "EXA_AUTH_FAILED",
         );
       }
@@ -103,8 +109,11 @@ async function exaPost<T>(
 
 export async function extractCompanyProfile(
   url: string,
+  apiKey?: string,
 ): Promise<TimedResponse<ExaContentsResponse>> {
-  return exaPost<ExaContentsResponse>("/contents", {
+  return exaPost<ExaContentsResponse>(
+    "/contents",
+    {
     urls: [url],
     subpages: 6,
     subpageTarget: [
@@ -165,13 +174,18 @@ export async function extractCompanyProfile(
         ],
       },
     },
-  });
+    },
+    apiKey,
+  );
 }
 
 export async function discoverCustomers(
   profile: CompanyProfile,
+  apiKey?: string,
 ): Promise<TimedResponse<ExaSearchResponse>> {
-  return exaPost<ExaSearchResponse>("/search", {
+  return exaPost<ExaSearchResponse>(
+    "/search",
+    {
     query: `Identify 12 to 15 well-known organizations that are publicly evidenced customers or production users of ${profile.companyName} (${profile.domain}). The relationship must involve ${profile.customerJob}. Distinguish a real customer/user relationship from a partnership, integration, investor, or mere mention.`,
     additionalQueries: [
       `${profile.companyName} official customer case studies and customer stories`,
@@ -217,12 +231,15 @@ export async function discoverCustomers(
         maxCharacters: 1200,
       },
     },
-  });
+    },
+    apiKey,
+  );
 }
 
 export async function scanChurnSignals(
   profile: CompanyProfile,
   customers: Customer[],
+  apiKey?: string,
 ): Promise<TimedResponse<ExaSearchResponse>> {
   const customerList = customers
     .map((customer, index) => `${index + 1}. ${customer.name}`)
@@ -332,7 +349,9 @@ Look broadly for indirect, semantically related evidence: adoption or hiring aro
         maxCharacters: 1600,
       },
     },
-  });
+    },
+    apiKey,
+  );
 }
 
 export function toTrace(

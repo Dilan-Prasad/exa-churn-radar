@@ -9,6 +9,7 @@ import {
 import {
   normalizeCompanyUrl,
   parseCustomerListInput,
+  parseExaApiKey,
   parseStructuredSummary,
   RadarError,
   toCompanyProfile,
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => null)) as {
       url?: unknown;
       customers?: unknown;
+      apiKey?: unknown;
     } | null;
 
     if (typeof body?.url !== "string" || body.url.length > 2_048) {
@@ -53,11 +55,12 @@ export async function POST(request: Request) {
     }
 
     const url = normalizeCompanyUrl(body.url);
+    const apiKey = parseExaApiKey(body.apiKey);
     const providedCustomerNames = parseCustomerListInput(body.customers);
     const portfolioSource =
       providedCustomerNames.length > 0 ? "provided" : "discovered";
 
-    const companyResponse = await extractCompanyProfile(url);
+    const companyResponse = await extractCompanyProfile(url, apiKey);
     const failedStatus = companyResponse.data.statuses?.find(
       (status) => status.status === "error",
     );
@@ -84,7 +87,7 @@ export async function POST(request: Request) {
     if (portfolioSource === "provided") {
       customers = toProvidedCustomers(providedCustomerNames);
     } else {
-      customerResponse = await discoverCustomers(profile);
+      customerResponse = await discoverCustomers(profile, apiKey);
       customers = toCustomers(
         customerResponse.data.output?.content,
         customerResponse.data.output?.grounding,
@@ -98,7 +101,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const signalResponse = await scanChurnSignals(profile, customers);
+    const signalResponse = await scanChurnSignals(profile, customers, apiKey);
     const signals = toSignals(
       signalResponse.data.output?.content,
       signalResponse.data.output?.grounding,

@@ -47,8 +47,10 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The key stays server-side
-inside the Next.js route and is never sent to the browser.
+Open [http://localhost:3000](http://localhost:3000). Paste an Exa API key in the
+top bar to switch keys without restarting the server. The key is stored only in
+this browser and sent to `/api/analyze` for the current scan. If the field is
+empty, the server falls back to `EXA_API_KEY`.
 
 ## Quality checks
 

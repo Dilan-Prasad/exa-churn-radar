@@ -5,6 +5,7 @@ import {
   MAX_PROVIDED_CUSTOMERS,
   normalizeCompanyUrl,
   parseCustomerListInput,
+  parseExaApiKey,
   parseStructuredSummary,
   riskBandForScore,
   toCustomers,
@@ -23,6 +24,15 @@ test("rejects local and private URLs", () => {
   assert.throws(() => normalizeCompanyUrl("localhost:3000"), /public http/);
   assert.throws(() => normalizeCompanyUrl("http://192.168.1.4"), /public http/);
   assert.throws(() => normalizeCompanyUrl("ftp://example.com"), /public http/);
+});
+
+test("accepts a well-formed Exa API key and rejects invalid ones", () => {
+  assert.equal(
+    parseExaApiKey("11111111-1111-4111-a111-111111111111"),
+    "11111111-1111-4111-a111-111111111111",
+  );
+  assert.equal(parseExaApiKey(""), undefined);
+  assert.throws(() => parseExaApiKey("not-a-key"), /valid Exa API key/);
 });
 
 test("parses and deduplicates operator-provided customer lists", () => {
